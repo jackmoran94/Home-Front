@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Brain — Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="app-header">
+    <div>
+      <h1>Morning Briefing</h1>
+      <div class="sub" id="dateLine">—</div>
+    </div>
+    <div class="stamp" id="stamp"><div class="w">—</div><div class="d">loading</div></div>
+  </header>
+
+  <div class="card">
+    <h2>What's on today</h2>
+    <div id="todayShift" class="empty-state">Loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Coming up (next 14 days)</h2>
+    <div id="reminderList"><div class="empty-state">Loading…</div></div>
+  </div>
+
+  <div class="summary-box">
+    <div class="summary-row total"><span>Left to breathe this month</span><span id="leftover">—</span></div>
+  </div>
+</div>
+
+<script src="/js/shared.js"></script>
+<script>
+(async function init() {
+  await requireAuth();
+  renderNav('/index.html');
+
+  const b = await api('/api/briefing');
+  if (!b) return;
+
+  document.getElementById('dateLine').textContent = fmtDate(b.date);
+
+  const stamp = document.getElementById('stamp');
+  if (b.rota.beforeAnchor) {
+    stamp.className = 'stamp';
+    stamp.innerHTML = `<div class="w">NOT STARTED</div><div class="d">rota begins ${b.rota.nextChange ? fmtDate(b.rota.nextChange.date) : ''}</div>`;
+  } else {
+    stamp.className = 'stamp ' + (b.rota.kids ? 'with' : 'away');
+    const changeText = b.rota.nextChange
+      ? (b.rota.kids ? `until ${fmtDate(b.rota.nextChange.date)}` : `kids from ${fmtDate(b.rota.nextChange.date)}`)
+      : '';
+    stamp.innerHTML = `<div class="w">${b.rota.kids ? 'KIDS: HOME' : 'KIDS: AWAY'}</div><div class="d">${changeText}</div>`;
+  }
+
+  const todayEl = document.getElementById('todayShift');
+  if (b.rota.beforeAnchor) {
+    todayEl.innerHTML = `<div class="empty-state">Rota data starts once the anchor date is reached. Check Settings.</div>`;
+  } else {
+    todayEl.innerHTML = `
+      <div class="rota-day ${b.rota.kids ? 'kids' : 'nokids'}">
+        <div>
+          <div class="rd-date">${b.rota.kids ? 'Kids with you today' : 'Kids not with you today'}</div>
+          <div class="rd-shift">Shift: ${escapeHtml(b.rota.shift)}</div>
+        </div>
+      </div>`;
+  }
+
+  const listEl = document.getElementById('reminderList');
+  if (b.reminders.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">Nothing urgent in the next two weeks.</div>';
+  } else {
+    listEl.innerHTML = b.reminders.map(r => `
+      <div class="item-row urgency-${r.urgency}">
+        <div class="item-main">
+          <div class="item-title">${escapeHtml(r.title)}</div>
+          <div class="item-meta">${escapeHtml(r.category)} · ${fmtDate(r.nextDate)}</div>
+        </div>
+        <div class="item-days">${daysLabel(r.daysUntil)}</div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('leftover').textContent = money(b.money.leftover);
+})();
+</script>
+</body>
+</html>

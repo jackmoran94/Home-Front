@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Brain — Money</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="app-header">
+    <div>
+      <h1>Money Management</h1>
+      <div class="sub">Manual in, manual out — no bank linking</div>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>Monthly income</h2>
+    <div class="form-row">
+      <div><label>Take-home pay</label><input type="number" id="incomeAmount" step="0.01"></div>
+      <div><label>Payday (day of month)</label><input type="number" id="paydayDay" min="1" max="31"></div>
+    </div>
+    <button class="btn" id="saveIncome">Save</button>
+  </div>
+
+  <div class="summary-box">
+    <div class="summary-row"><span>Income</span><span id="sumIncome">—</span></div>
+    <div class="summary-row"><span>Bills</span><span id="sumBills">—</span></div>
+    <div class="summary-row"><span>Savings contributions</span><span id="sumGoals">—</span></div>
+    <div class="summary-row total"><span>Left to breathe</span><span id="sumLeftover">—</span></div>
+  </div>
+
+  <div class="card" id="forecastCard">
+    <h2>Before next payday</h2>
+    <div id="forecastBody" class="empty-state">Loading…</div>
+  </div>
+
+  <div class="card">
+    <h2>Bills</h2>
+    <div class="form-row">
+      <div><label>Name</label><input type="text" id="b-name" placeholder="e.g. Rent"></div>
+      <div><label>Amount</label><input type="number" id="b-amount" step="0.01"></div>
+      <div style="flex:0 0 90px;"><label>Due day</label><input type="number" id="b-day" min="1" max="31"></div>
+    </div>
+    <button class="btn" id="addBill">Add bill</button>
+    <div id="billList" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>Savings goals</h2>
+    <div class="form-row">
+      <div><label>Goal</label><input type="text" id="g-name" placeholder="e.g. Christmas"></div>
+      <div><label>Target £</label><input type="number" id="g-target" step="0.01"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Already saved £</label><input type="number" id="g-current" step="0.01"></div>
+      <div><label>Target date</label><input type="date" id="g-date"></div>
+    </div>
+    <button class="btn" id="addGoal">Add goal</button>
+    <div id="goalList" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<script src="/js/shared.js"></script>
+<script>
+async function loadIncome() {
+  const { income } = await api('/api/income');
+  document.getElementById('incomeAmount').value = income.amount || '';
+  document.getElementById('paydayDay').value = income.payday_day || 28;
+}
+
+async function loadSummary() {
+  const { summary, forecast } = await api('/api/money-summary');
+  document.getElementById('sumIncome').textContent = money(summary.income);
+  document.getElementById('sumBills').textContent = '− ' + money(summary.billTotal);
+  document.getElementById('sumGoals').textContent = '− ' + money(summary.goalTotal);
+  document.getElementById('sumLeftover').textContent = money(summary.leftover);
+
+  const fEl = document.getElementById('forecastBody');
+  if (forecast.billsDue.length === 0) {
+    fEl.innerHTML = `<div class="empty-state">Nothing due before payday (${fmtDate(forecast.paydayDate)}, in ${forecast.daysUntilPayday}d).</div>`;
+  } else {
+    fEl.innerHTML = `
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">Payday: ${fmtDate(forecast.paydayDate)} (in ${forecast.daysUntilPayday}d)</div>
+      ${forecast.billsDue.map(b => `
+        <div class="item-row">
+          <div class="item-main"><div class="item-title">${escapeHtml(b.name)}</div><div class="item-meta">${fmtDate(b.dueDate)}</div></div>
+          <div class="item-days">${money(b.amount)}</div>
+        </div>
+      `).join('')}
+      <div style="text-align:right;font-weight:600;margin-top:6px;">Total due: ${money(forecast.totalDueBeforePayday)}</div>
+    `;
+  }
+}
+
+async function loadBills() {
+  const { bills } = await api('/api/bills');
+  const el = document.getElementById('billList');
+  if (bills.length === 0) { el.innerHTML = '<div class="empty-state">No bills yet.</div>'; return; }
+  el.innerHTML = bills.map(b => `
+    <div class="item-row">
+      <div class="item-main"><div class="item-title">${escapeHtml(b.name)}</div><div class="item-meta">Due day ${b.due_day}</div></div>
+      <div class="item-days">${money(b.amount)}</div>
+      <button class="icon-btn" data-action="delbill" data-id="${b.id}">✕</button>
+    </div>
+  `).join('');
+}
+
+async function loadGoals() {
+  const { goals } = await api('/api/goals');
+  const el = document.getElementById('goalList');
+  if (goals.length === 0) { el.innerHTML = '<div class="empty-state">No savings goals yet.</div>'; return; }
+  el.innerHTML = goals.map(g => {
+    const pct = g.target > 0 ? Math.min(100, (g.current / g.target) * 100) : 0;
+    return `
+      <div class="item-row" style="flex-direction:column;align-items:stretch;">
+        <div style="display:flex;justify-content:space-between;">
+          <div class="item-title">${escapeHtml(g.name)}</div>
+          <button class="icon-btn" data-action="delgoal" data-id="${g.id}">✕</button>
+        </div>
+        <div class="goal-bar-track"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+        <div class="item-meta" style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span>${money(g.current)} of ${money(g.target)} · by ${fmtDate(g.target_date)}</span>
+          <span style="color:var(--teal);font-weight:600;">${money(g.monthlyContribution)}/mo</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('saveIncome').addEventListener('click', async () => {
+  const amount = Number(document.getElementById('incomeAmount').value) || 0;
+  const paydayDay = Number(document.getElementById('paydayDay').value) || 28;
+  await api('/api/income', { method: 'POST', body: JSON.stringify({ amount, paydayDay }) });
+  loadSummary();
+});
+
+document.getElementById('addBill').addEventListener('click', async () => {
+  const name = document.getElementById('b-name').value.trim();
+  const amount = Number(document.getElementById('b-amount').value);
+  const dueDay = Number(document.getElementById('b-day').value);
+  if (!name || !amount || !dueDay) { alert('Fill in name, amount, and due day.'); return; }
+  await api('/api/bills', { method: 'POST', body: JSON.stringify({ name, amount, dueDay }) });
+  document.getElementById('b-name').value = '';
+  document.getElementById('b-amount').value = '';
+  document.getElementById('b-day').value = '';
+  loadBills(); loadSummary();
+});
+
+document.getElementById('billList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  if (btn.dataset.action === 'delbill') {
+    await api(`/api/bills/${btn.dataset.id}`, { method: 'DELETE' });
+    loadBills(); loadSummary();
+  }
+});
+
+document.getElementById('addGoal').addEventListener('click', async () => {
+  const name = document.getElementById('g-name').value.trim();
+  const target = Number(document.getElementById('g-target').value);
+  const current = Number(document.getElementById('g-current').value) || 0;
+  const targetDate = document.getElementById('g-date').value;
+  if (!name || !target || !targetDate) { alert('Fill in name, target, and target date.'); return; }
+  await api('/api/goals', { method: 'POST', body: JSON.stringify({ name, target, current, targetDate }) });
+  document.getElementById('g-name').value = '';
+  document.getElementById('g-target').value = '';
+  document.getElementById('g-current').value = '';
+  document.getElementById('g-date').value = '';
+  loadGoals(); loadSummary();
+});
+
+document.getElementById('goalList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  if (btn.dataset.action === 'delgoal') {
+    await api(`/api/goals/${btn.dataset.id}`, { method: 'DELETE' });
+    loadGoals(); loadSummary();
+  }
+});
+
+(async function init() {
+  await requireAuth();
+  renderNav('/money.html');
+  await Promise.all([loadIncome(), loadSummary(), loadBills(), loadGoals()]);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Brain — Log in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="centered-auth">
+  <div class="auth-box">
+    <h1>Second Brain</h1>
+    <div class="sub">Command log — dates &amp; money</div>
+    <div class="form-row"><div>
+      <label>Password</label>
+      <input type="password" id="password" autofocus>
+    </div></div>
+    <button class="btn" id="submit" style="width:100%;">Log in</button>
+    <div class="error-msg" id="error"></div>
+  </div>
+</div>
+<script>
+async function doLogin() {
+  const password = document.getElementById('password').value;
+  const errorEl = document.getElementById('error');
+  errorEl.textContent = '';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || 'Wrong password.'; return; }
+    window.location.href = '/index.html';
+  } catch (e) {
+    errorEl.textContent = 'Could not reach the server.';
+  }
+}
+document.getElementById('submit').addEventListener('click', doLogin);
+document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+fetch('/api/status').then(r => r.json()).then(s => {
+  if (!s.passwordSet) window.location.href = '/setup.html';
+});
+</script>
+</body>
+</html>

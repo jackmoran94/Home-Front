@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Brain — Set up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="centered-auth">
+  <div class="auth-box">
+    <h1>Second Brain</h1>
+    <div class="sub">First-time setup — choose a password</div>
+    <div class="form-row"><div>
+      <label>Password (min 6 characters)</label>
+      <input type="password" id="password" autofocus>
+    </div></div>
+    <div class="form-row"><div>
+      <label>Confirm password</label>
+      <input type="password" id="confirm">
+    </div></div>
+    <button class="btn" id="submit" style="width:100%;">Set password &amp; continue</button>
+    <div class="error-msg" id="error"></div>
+  </div>
+</div>
+<script>
+document.getElementById('submit').addEventListener('click', async () => {
+  const password = document.getElementById('password').value;
+  const confirm = document.getElementById('confirm').value;
+  const errorEl = document.getElementById('error');
+  errorEl.textContent = '';
+  if (password.length < 6) { errorEl.textContent = 'Password must be at least 6 characters.'; return; }
+  if (password !== confirm) { errorEl.textContent = 'Passwords do not match.'; return; }
+  try {
+    const res = await fetch('/api/setup-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error || 'Something went wrong.'; return; }
+    window.location.href = '/index.html';
+  } catch (e) {
+    errorEl.textContent = 'Could not reach the server.';
+  }
+});
+
+// If password already set, bounce to login
+fetch('/api/status').then(r => r.json()).then(s => {
+  if (s.passwordSet) window.location.href = '/login.html';
+});
+</script>
+</body>
+</html>

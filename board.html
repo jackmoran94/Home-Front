@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Brain — The Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="app-header">
+    <div>
+      <h1>The Board</h1>
+      <div class="sub">Birthdays, bills, renewals, events, replies</div>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="form-row">
+      <div>
+        <label>What</label>
+        <input type="text" id="r-title" placeholder="e.g. Car insurance renewal">
+      </div>
+      <div>
+        <label>Category</label>
+        <select id="r-category">
+          <option value="birthday">Birthday</option>
+          <option value="bill">Bill</option>
+          <option value="renewal">Renewal</option>
+          <option value="event">Event</option>
+          <option value="reply">Reply / text back</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="r-date">
+      </div>
+      <div>
+        <label>Priority</label>
+        <select id="r-priority">
+          <option value="high">High — stay on my case</option>
+          <option value="medium" selected>Medium</option>
+          <option value="low">Low — quiet until close</option>
+        </select>
+      </div>
+      <div>
+        <label>Repeats yearly</label>
+        <select id="r-repeat">
+          <option value="no">No</option>
+          <option value="yes">Yes</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" id="addBtn">Add to board</button>
+  </div>
+
+  <div id="reminderList"><div class="empty-state">Loading…</div></div>
+</div>
+
+<script src="/js/shared.js"></script>
+<script>
+async function loadReminders() {
+  const data = await api('/api/reminders');
+  if (!data) return;
+  const listEl = document.getElementById('reminderList');
+  if (data.reminders.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">Nothing on the board yet.</div>';
+    return;
+  }
+  listEl.innerHTML = data.reminders.map(r => `
+    <div class="item-row urgency-${r.urgency} ${r.done ? 'done' : ''}">
+      <div class="item-main">
+        <div class="item-title">${escapeHtml(r.title)}</div>
+        <div class="item-meta">
+          ${escapeHtml(r.category)} · ${fmtDate(r.nextDate)}${r.repeat_annual ? ' · yearly' : ''}
+          &nbsp;<span class="badge ${r.priority}">${r.priority}</span>
+        </div>
+      </div>
+      <div class="item-days">${daysLabel(r.daysUntil)}</div>
+      <button class="icon-btn" data-action="toggle" data-id="${r.id}" title="Mark done">${r.done ? '↺' : '✓'}</button>
+      <button class="icon-btn" data-action="delete" data-id="${r.id}" title="Delete">✕</button>
+    </div>
+  `).join('');
+}
+
+document.getElementById('addBtn').addEventListener('click', async () => {
+  const title = document.getElementById('r-title').value.trim();
+  const category = document.getElementById('r-category').value;
+  const date = document.getElementById('r-date').value;
+  const priority = document.getElementById('r-priority').value;
+  const repeatAnnual = document.getElementById('r-repeat').value === 'yes';
+  if (!title || !date) { alert('Add a title and a date.'); return; }
+  await api('/api/reminders', { method: 'POST', body: JSON.stringify({ title, category, date, priority, repeatAnnual }) });
+  document.getElementById('r-title').value = '';
+  document.getElementById('r-date').value = '';
+  loadReminders();
+});
+
+document.getElementById('reminderList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  if (btn.dataset.action === 'toggle') {
+    const row = btn.closest('.item-row');
+    const isDone = row.classList.contains('done');
+    await api(`/api/reminders/${id}`, { method: 'PATCH', body: JSON.stringify({ done: !isDone }) });
+  } else if (btn.dataset.action === 'delete') {
+    await api(`/api/reminders/${id}`, { method: 'DELETE' });
+  }
+  loadReminders();
+});
+
+(async function init() {
+  await requireAuth();
+  renderNav('/board.html');
+  loadReminders();
+})();
+</script>
+</body>
+</html>

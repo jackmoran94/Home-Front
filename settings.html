@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Second Brain — Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="app-header">
+    <div><h1>Settings</h1></div>
+  </header>
+
+  <div class="card">
+    <h2>Kids rota anchor date</h2>
+    <p style="font-size:12px;color:var(--ink-soft);">This is the date "Day 1" of Template A falls on. Only change this if you're moved to a different team and the rota phase shifts.</p>
+    <div class="form-row">
+      <div><label>Anchor date</label><input type="date" id="anchorDate"></div>
+    </div>
+    <button class="btn" id="saveAnchor">Save</button>
+    <div class="error-msg" id="anchorMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>How hard should reminders push?</h2>
+    <p style="font-size:12px;color:var(--ink-soft);">Number of days before the date that each priority tier starts showing as urgent.</p>
+    <div class="form-row">
+      <div><label>High priority</label><input type="number" id="priHigh" min="1"></div>
+      <div><label>Medium priority</label><input type="number" id="priMedium" min="1"></div>
+      <div><label>Low priority</label><input type="number" id="priLow" min="1"></div>
+    </div>
+    <button class="btn" id="savePriority">Save</button>
+  </div>
+
+  <div class="card">
+    <h2>Change password</h2>
+    <div class="form-row">
+      <div><label>Current password</label><input type="password" id="currentPw"></div>
+    </div>
+    <div class="form-row">
+      <div><label>New password</label><input type="password" id="newPw"></div>
+    </div>
+    <button class="btn" id="changePw">Update password</button>
+    <div class="error-msg" id="pwMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Session</h2>
+    <button class="btn btn-danger" id="logoutBtn">Log out</button>
+  </div>
+
+  <div class="card">
+    <h2>Roadmap</h2>
+    <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;">
+      Coming later: Telegram morning briefing push, school holiday lead-time reminders,
+      and rule-based email triage with a batch-approval unsubscribe flow.
+      These aren't built yet in this version.
+    </p>
+  </div>
+</div>
+
+<script src="/js/shared.js"></script>
+<script>
+async function loadSettings() {
+  const { anchorDate } = await api('/api/rota/settings');
+  document.getElementById('anchorDate').value = anchorDate;
+
+  const pri = await api('/api/settings/priority');
+  document.getElementById('priHigh').value = pri.high;
+  document.getElementById('priMedium').value = pri.medium;
+  document.getElementById('priLow').value = pri.low;
+}
+
+document.getElementById('saveAnchor').addEventListener('click', async () => {
+  const anchorDate = document.getElementById('anchorDate').value;
+  const msgEl = document.getElementById('anchorMsg');
+  try {
+    await api('/api/rota/settings', { method: 'POST', body: JSON.stringify({ anchorDate }) });
+    msgEl.style.color = 'var(--teal)';
+    msgEl.textContent = 'Saved.';
+  } catch (e) {
+    msgEl.style.color = 'var(--brick)';
+    msgEl.textContent = e.message;
+  }
+});
+
+document.getElementById('savePriority').addEventListener('click', async () => {
+  const high = Number(document.getElementById('priHigh').value);
+  const medium = Number(document.getElementById('priMedium').value);
+  const low = Number(document.getElementById('priLow').value);
+  await api('/api/settings/priority', { method: 'POST', body: JSON.stringify({ high, medium, low }) });
+});
+
+document.getElementById('changePw').addEventListener('click', async () => {
+  const currentPassword = document.getElementById('currentPw').value;
+  const newPassword = document.getElementById('newPw').value;
+  const msgEl = document.getElementById('pwMsg');
+  try {
+    await api('/api/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+    msgEl.style.color = 'var(--teal)';
+    msgEl.textContent = 'Password updated.';
+    document.getElementById('currentPw').value = '';
+    document.getElementById('newPw').value = '';
+  } catch (e) {
+    msgEl.style.color = 'var(--brick)';
+    msgEl.textContent = e.message;
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await api('/api/logout', { method: 'POST' });
+  window.location.href = '/login.html';
+});
+
+(async function init() {
+  await requireAuth();
+  renderNav('/settings.html');
+  loadSettings();
+})();
+</script>
+</body>
+</html>
