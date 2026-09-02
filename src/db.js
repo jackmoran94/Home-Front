@@ -88,12 +88,7 @@ function migrate() {
     seedRotaTemplates();
   }
 
-  // Default settings
-  const defaults = {
-    rota_anchor_date: '2026-09-21', // Day 1 of Template A
-    priority_high_days: '14',
-    priority_medium_days: '7',
-    priority_low_days: '2',  
+  // Default settings 
     const defaults = {
     rota_anchor_date: '2026-09-21', // Day 1 of Template A
     priority_high_days: '14',
