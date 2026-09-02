@@ -93,7 +93,12 @@ function migrate() {
     rota_anchor_date: '2026-09-21', // Day 1 of Template A
     priority_high_days: '14',
     priority_medium_days: '7',
-    priority_low_days: '2'
+    priority_low_days: '2',
+    telegram_bot_token: '',
+    telegram_chat_id: '',
+    telegram_send_time: '07:00',
+    telegram_enabled: '0',
+    telegram_last_sent_date: ''
   };
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
