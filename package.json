@@ -1,0 +1,15 @@
+{
+  "name": "second-brain",
+  "version": "1.0.0",
+  "description": "Second Brain — a private, single-user personal assistant app: kids rota, reminders board, and manual money management.",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {},
+  "license": "UNLICENSED",
+  "private": true
+}
