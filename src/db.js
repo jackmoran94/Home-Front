@@ -76,30 +76,21 @@ function migrate() {
     );
   `);
 
-  // Ensure a single income row exists
   const incomeRow = db.prepare('SELECT id FROM income WHERE id = 1').get();
   if (!incomeRow) {
     db.prepare('INSERT INTO income (id, amount, payday_day) VALUES (1, 0, 28)').run();
   }
 
-  // Seed rota templates only if empty
   const countRow = db.prepare('SELECT COUNT(*) AS c FROM rota_templates').get();
   if (countRow.c === 0) {
     seedRotaTemplates();
   }
 
-  // Default settings 
-    const defaults = {
-    rota_anchor_date: '2026-09-21', // Day 1 of Template A
+  const defaults = {
+    rota_anchor_date: '2026-09-21',
     priority_high_days: '14',
     priority_medium_days: '7',
     priority_low_days: '2',
-    telegram_bot_token: '',
-    telegram_chat_id: '',
-    telegram_send_time: '07:00',
-    telegram_enabled: '0',
-    telegram_last_sent_date: ''
-  };
     telegram_bot_token: '',
     telegram_chat_id: '',
     telegram_send_time: '07:00',
@@ -113,7 +104,6 @@ function migrate() {
   }
 }
 
-// Confirmed 28-day rota data: [dayNumber, kids(0/1), shift]
 const TEMPLATE_A = [
   [1, 1, 'OFF'], [2, 1, 'EF'], [3, 0, 'Late'], [4, 0, 'Early'], [5, 0, 'LF'],
   [6, 1, 'OFF'], [7, 1, 'OFF'], [8, 0, 'EF'], [9, 0, 'Late'], [10, 1, 'Early'],
